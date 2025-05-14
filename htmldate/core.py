@@ -774,33 +774,33 @@ def search_page(htmlstring: str, options: Extractor) -> Optional[str]:
         if result is not None:
             return result
 
-    # catchall: copyright mention
-    if copyear != 0:
-        LOGGER.debug("using copyright year as default")
-        dateobject = datetime(int(copyear), 1, 1)
-        return dateobject.strftime(options.format)
+    # remove copyright year as default
+    # if copyear != 0:
+    #     LOGGER.debug("using copyright year as default")
+    #     dateobject = datetime(int(copyear), 1, 1)
+    #     return dateobject.strftime(options.format)
 
-    # last resort: 1 component
-    LOGGER.debug("switching to one component")
-    bestmatch = search_pattern(
-        htmlstring,
-        SIMPLE_PATTERN,
-        YEAR_PATTERN,
-        YEAR_PATTERN,
-        options,
-    )
-    if bestmatch is not None:
-        dateobject = datetime(int(bestmatch[0]), 1, 1)
-        if (
-            is_valid_date(
-                dateobject, "%Y-%m-%d", earliest=options.min, latest=options.max
-            )
-            and dateobject.year >= copyear
-        ):
-            LOGGER.debug(
-                'date found for pattern "%s": %s', SIMPLE_PATTERN, bestmatch[0]
-            )
-            return dateobject.strftime(options.format)
+    # remove single component date as default
+    # LOGGER.debug("switching to one component")
+    # bestmatch = search_pattern(
+    #     htmlstring,
+    #     SIMPLE_PATTERN,
+    #     YEAR_PATTERN,
+    #     YEAR_PATTERN,
+    #     options,
+    # )
+    # if bestmatch is not None:
+    #     dateobject = datetime(int(bestmatch[0]), 1, 1)
+    #     if (
+    #         is_valid_date(
+    #             dateobject, "%Y-%m-%d", earliest=options.min, latest=options.max
+    #         )
+    #         and dateobject.year >= copyear
+    #     ):
+    #         LOGGER.debug(
+    #             'date found for pattern "%s": %s', SIMPLE_PATTERN, bestmatch[0]
+    #         )
+    #         return dateobject.strftime(options.format)
 
     return None
 
