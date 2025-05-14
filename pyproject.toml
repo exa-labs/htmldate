@@ -11,7 +11,8 @@ license = { text = "Apache 2.0" }
 dynamic = ["version"]
 requires-python = ">=3.8"
 authors = [
-  {name = "Adrien Barbaresi", email = "barbaresi@bbaw.de"}
+    { name = "Adrien Barbaresi", email = "barbaresi@bbaw.de" },
+    { name = "Joshua Ahn", email = "joshua@exa.ai" },
 ]
 keywords=[
     "datetime",
