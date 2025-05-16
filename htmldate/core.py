@@ -855,129 +855,134 @@ def find_date(
     """
 
     # init
-    if verbose:
-        logging.basicConfig(level=logging.DEBUG)
-
-    tree = load_html(htmlobject)
-
-    # safeguards
-    if tree is None:
-        return None
-    if outputformat != "%Y-%m-%d" and not is_valid_format(outputformat):
-        return None
-
-    # define options and time boundaries
-    options = Extractor(
-        extensive_search,
-        get_max_date(max_date),
-        get_min_date(min_date),
-        original_date,
-        outputformat,
-    )
-    # unclear what this line is for and it impedes type checking:
-    # find_date.extensive_search = extensive_search
-
-    # URL
-    url_result = None
-    if url is None:
-        # probe for canonical links
-        urlelem = tree.find('.//link[@rel="canonical"]')
-        if urlelem is not None:
-            url = urlelem.get("href")
-
-    # direct processing of URL info
-    url_result = extract_url_date(url, options)
-    if url_result is not None and not deferred_url_extractor:
-        return url_result
-
-    # first try header
-    # then try to use JSON data
-    result = examine_header(tree, options) or json_search(tree, options)
-    if result is not None:
-        return result
-
-    # deferred processing of URL info (may be moved even further down if necessary)
-    if deferred_url_extractor and url_result is not None:
-        return url_result
-
-    # try abbr elements
-    abbr_result = examine_abbr_elements(
-        tree,
-        options,
-    )
-    if abbr_result is not None:
-        return abbr_result
-
-    # first, prune tree
     try:
-        search_tree, discarded = discard_unwanted(
-            clean_html(deepcopy(tree), CLEANING_LIST)
+        if verbose:
+            logging.basicConfig(level=logging.DEBUG)
+
+        tree = load_html(htmlobject)
+
+        # safeguards
+        if tree is None:
+            return None
+        if outputformat != "%Y-%m-%d" and not is_valid_format(outputformat):
+            return None
+
+        # define options and time boundaries
+        options = Extractor(
+            extensive_search,
+            get_max_date(max_date),
+            get_min_date(min_date),
+            original_date,
+            outputformat,
         )
-    # rare LXML error: no NULL bytes or control characters
-    except ValueError:  # pragma: no cover
-        search_tree = tree
-        LOGGER.error("lxml cleaner error")
+        # unclear what this line is for and it impedes type checking:
+        # find_date.extensive_search = extensive_search
 
-    # define expressions + text_content
-    if extensive_search:
-        date_expr = SLOW_PREPEND + DATE_EXPRESSIONS
-    else:
-        date_expr = FAST_PREPEND + DATE_EXPRESSIONS
+        # URL
+        url_result = None
+        if url is None:
+            # probe for canonical links
+            urlelem = tree.find('.//link[@rel="canonical"]')
+            if urlelem is not None:
+                url = urlelem.get("href")
 
-    # then look for expressions
-    # and try time elements
-    result = (
-        examine_date_elements(
-            search_tree,
-            date_expr,
+        # direct processing of URL info
+        url_result = extract_url_date(url, options)
+        if url_result is not None and not deferred_url_extractor:
+            return url_result
+
+        # first try header
+        # then try to use JSON data
+        result = examine_header(tree, options) or json_search(tree, options)
+        if result is not None:
+            return result
+
+        # deferred processing of URL info (may be moved even further down if necessary)
+        if deferred_url_extractor and url_result is not None:
+            return url_result
+
+        # try abbr elements
+        abbr_result = examine_abbr_elements(
+            tree,
             options,
         )
-        or examine_date_elements(
-            search_tree,
-            ".//title|.//h1",
-            options,
+        if abbr_result is not None:
+            return abbr_result
+
+        # first, prune tree
+        try:
+            search_tree, discarded = discard_unwanted(
+                clean_html(deepcopy(tree), CLEANING_LIST)
+            )
+        # rare LXML error: no NULL bytes or control characters
+        except ValueError:  # pragma: no cover
+            search_tree = tree
+            LOGGER.error("lxml cleaner error")
+
+        # define expressions + text_content
+        if extensive_search:
+            date_expr = SLOW_PREPEND + DATE_EXPRESSIONS
+        else:
+            date_expr = FAST_PREPEND + DATE_EXPRESSIONS
+
+        # then look for expressions
+        # and try time elements
+        result = (
+            examine_date_elements(
+                search_tree,
+                date_expr,
+                options,
+            )
+            or examine_date_elements(
+                search_tree,
+                ".//title|.//h1",
+                options,
+            )
+            or examine_time_elements(search_tree, options)
         )
-        or examine_time_elements(search_tree, options)
-    )
-    if result is not None:
-        return result
+        if result is not None:
+            return result
 
-    # TODO: decide on this
-    # search in discarded parts (e.g. archive.org-banner)
-    # for subtree in discarded:
-    #    dateresult = examine_date_elements(subtree, DATE_EXPRESSIONS, options)
-    #    if dateresult is not None:
-    #        return dateresult
+        # TODO: decide on this
+        # search in discarded parts (e.g. archive.org-banner)
+        # for subtree in discarded:
+        #    dateresult = examine_date_elements(subtree, DATE_EXPRESSIONS, options)
+        #    if dateresult is not None:
+        #        return dateresult
 
-    # robust conversion to string
-    try:
-        htmlstring = tostring(search_tree, pretty_print=False, encoding="unicode")
-    except UnicodeDecodeError:
-        htmlstring = tostring(search_tree, pretty_print=False).decode("utf-8", "ignore")
+        # robust conversion to string
+        try:
+            htmlstring = tostring(search_tree, pretty_print=False, encoding="unicode")
+        except UnicodeDecodeError:
+            htmlstring = tostring(search_tree, pretty_print=False).decode("utf-8", "ignore")
 
-    # date regex timestamp rescue
-    # try image elements
-    # precise patterns and idiosyncrasies
-    result = (
-        pattern_search(htmlstring, TIMESTAMP_PATTERN, options)
-        or img_search(search_tree, options)
-        or idiosyncrasies_search(htmlstring, options)
-    )
-    if result is not None:
-        return result
+        # date regex timestamp rescue
+        # try image elements
+        # precise patterns and idiosyncrasies
+        result = (
+            pattern_search(htmlstring, TIMESTAMP_PATTERN, options)
+            or img_search(search_tree, options)
+            or idiosyncrasies_search(htmlstring, options)
+        )
+        if result is not None:
+            return result
 
-    # last resort
-    if extensive_search:
-        LOGGER.debug("extensive search started")
-        # TODO: further tests & decide according to original_date
-        reference = 0
-        for segment in FREE_TEXT_EXPRESSIONS(search_tree):
-            segment = segment.strip()
-            if not MIN_SEGMENT_LEN < len(segment) < MAX_SEGMENT_LEN:
-                continue
-            reference = compare_reference(reference, segment, options)
-        converted = check_extracted_reference(reference, options)
-        # return or search page HTML
-        return converted or search_page(htmlstring, options)
+        # last resort
+        if extensive_search:
+            LOGGER.debug("extensive search started")
+            # TODO: further tests & decide according to original_date
+            reference = 0
+            for segment in FREE_TEXT_EXPRESSIONS(search_tree):
+                segment = segment.strip()
+                if not MIN_SEGMENT_LEN < len(segment) < MAX_SEGMENT_LEN:
+                    continue
+                reference = compare_reference(reference, segment, options)
+            converted = check_extracted_reference(reference, options)
+            # return or search page HTML
+            return converted or search_page(htmlstring, options)
 
-    return None
+        return None
+
+    except Exception as e:
+        print(e)
+        return None
